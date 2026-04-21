@@ -9,7 +9,7 @@ export default function LoginPage() {
   const router = useRouter();
   useEffect(() => {
     // Auto-redirect to dashboard so no registration/login is required
-    router.replace("/login");
+    router.replace("/dashboard");
   }, [router]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
