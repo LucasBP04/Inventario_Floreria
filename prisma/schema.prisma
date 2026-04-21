@@ -1,0 +1,213 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────
+// ROLES & USERS
+// ──────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  EMPLOYEE
+}
+
+model User {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(EMPLOYEE)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  auditLogs    AuditLog[]
+  orders       Order[]    @relation("CreatedOrders")
+  stockMovements StockMovement[]
+
+  @@map("users")
+}
+
+// ──────────────────────────────────────────────
+// FLOWER CATALOG
+// ──────────────────────────────────────────────
+
+model Flower {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  bouquetSize Int           // units per bouquet
+  pricePerBouquet Float
+  isFoliage   Boolean       @default(false)
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  batches     FlowerBatch[]
+  orderItems  OrderItem[]
+
+  @@map("flowers")
+}
+
+// ──────────────────────────────────────────────
+// STOCK BATCHES (one per supplier delivery)
+// ──────────────────────────────────────────────
+
+model FlowerBatch {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  flowerId     String   @db.ObjectId
+  flower       Flower   @relation(fields: [flowerId], references: [id])
+  quantity     Int      // bouquets received
+  receivedAt   DateTime @default(now())
+  expiresAt    DateTime // receivedAt + 7 days (enforced in app)
+  supplier     String
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  movements   StockMovement[]
+  wasteLogs   WasteLog[]
+
+  @@map("flower_batches")
+}
+
+// ──────────────────────────────────────────────
+// STOCK MOVEMENTS (audit trail for every change)
+// ──────────────────────────────────────────────
+
+enum MovementType {
+  IN     // incoming stock
+  OUT    // consumed by order
+  WASTE  // expired / damaged
+}
+
+model StockMovement {
+  id        String       @id @default(auto()) @map("_id") @db.ObjectId
+  batchId   String       @db.ObjectId
+  batch     FlowerBatch  @relation(fields: [batchId], references: [id])
+  type      MovementType
+  quantity  Int          // always positive; direction encoded in type
+  orderId   String?      @db.ObjectId
+  order     Order?       @relation(fields: [orderId], references: [id])
+  userId    String       @db.ObjectId
+  user      User         @relation(fields: [userId], references: [id])
+  createdAt DateTime     @default(now())
+  notes     String?
+
+  @@map("stock_movements")
+}
+
+// ──────────────────────────────────────────────
+// WASTE LOGS
+// ──────────────────────────────────────────────
+
+model WasteLog {
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+  batchId   String      @db.ObjectId
+  batch     FlowerBatch @relation(fields: [batchId], references: [id])
+  quantity  Int
+  reason    String?
+  createdAt DateTime    @default(now())
+  createdBy String
+
+  @@map("waste_logs")
+}
+
+// ──────────────────────────────────────────────
+// ORDERS
+// ──────────────────────────────────────────────
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  DELIVERED
+  CANCELLED
+}
+
+enum OrderChannel {
+  WHATSAPP
+  FACEBOOK
+  OTHER
+}
+
+model Order {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  customerName   String
+  customerPhone  String
+  channel        OrderChannel @default(WHATSAPP)
+  arrangement    String       // free-text description
+  deliveryDate   DateTime
+  status         OrderStatus  @default(PENDING)
+  totalPrice     Float
+  notes          String?
+  seasonId       String?      @db.ObjectId
+  season         Season?      @relation(fields: [seasonId], references: [id])
+  createdById    String       @db.ObjectId
+  createdBy      User         @relation("CreatedOrders", fields: [createdById], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  items          OrderItem[]
+  stockMovements StockMovement[]
+  auditLogs      AuditLog[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  orderId   String  @db.ObjectId
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  flowerId  String  @db.ObjectId
+  flower    Flower  @relation(fields: [flowerId], references: [id])
+  quantity  Int     // bouquets
+  unitPrice Float
+
+  @@map("order_items")
+}
+
+// ──────────────────────────────────────────────
+// SEASONS / EVENTS
+// ──────────────────────────────────────────────
+
+model Season {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  multiplier  Float    @default(1.00) // price multiplier
+  targetUnits Int?     // recommended purchase quantity (bouquets)
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders      Order[]
+
+  @@map("seasons")
+}
+
+// ──────────────────────────────────────────────
+// AUDIT LOGS
+// ──────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  action    String   // e.g. "CREATE_ORDER", "CONFIRM_ORDER", "ADD_STOCK"
+  entity    String   // e.g. "Order", "FlowerBatch"
+  entityId  String?
+  orderId   String?  @db.ObjectId
+  order     Order?   @relation(fields: [orderId], references: [id])
+  details   Json?    // snapshot of payload
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
