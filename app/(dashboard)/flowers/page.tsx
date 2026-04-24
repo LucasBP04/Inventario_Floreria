@@ -128,8 +128,7 @@ export default function FlowersPage() {
                   <tr key={f.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-900">{f.name}</td>
                     <td className="px-4 py-3 text-gray-600">{f.bouquetSize}</td>
-                    <td className="px-4 py-3 text-gray-600">{formatCurrency(f.pricePerBouquet)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-gray-600">{formatCurrency(Number(f.pricePerBouquet))}</td>                    <td className="px-4 py-3">
                       <Badge variant={f.isFoliage ? "default" : "fresh"}>
                         {f.isFoliage ? "Follaje" : "Flor"}
                       </Badge>

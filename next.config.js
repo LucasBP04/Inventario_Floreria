@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone', // <--- Agrega esta línea aquí
   experimental: {
     serverComponentsExternalPackages: ["@prisma/client", "bcryptjs"],
   },
