@@ -62,7 +62,7 @@ export default function AlertsPage() {
           {/* Low Stock */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-yellow-700">
+              <CardTitle className="flex items-center gap-2 text-yellow-600">
                 <AlertTriangle className="w-4 h-4" />
                 Stock Bajo
                 {(data?.lowStock.length ?? 0) > 0 && (
@@ -91,7 +91,7 @@ export default function AlertsPage() {
           {/* Near Expiration */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-orange-700">
+              <CardTitle className="flex items-center gap-2 text-red-700">
                 <Clock className="w-4 h-4" />
                 Por Vencer
                 {(data?.expiring.length ?? 0) > 0 && (
@@ -120,7 +120,7 @@ export default function AlertsPage() {
           {/* Upcoming Seasons */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-primary">
+              <CardTitle className="flex items-center gap-2 text-pink-700">
                 <CalendarHeart className="w-4 h-4" />
                 Temporadas Próximas
               </CardTitle>

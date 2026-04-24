@@ -1,9 +1,23 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+
+import { createLucideIcon } from "lucide-react";
+
+export const ArrowSwitchIcon = createLucideIcon("ArrowSwitch", [
+  [
+    "path",
+    {
+      d: "M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+    },
+  ],
+]);
+
 import {
   Package, ShoppingCart, TrendingUp, AlertTriangle, Flower2,
-  CheckCircle2, Clock
+  CheckCircle2, Clock , 
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -90,7 +104,7 @@ export default function DashboardPage() {
       label: "Ingresos Totales",
       value: formatCurrency(kpis?.totalRevenue ?? 0),
       icon: TrendingUp,
-      color: "text-primary bg-rose-50",
+      color: "text-green-600 bg-rose-50",
     },
     {
       label: "Lotes Activos",
@@ -188,7 +202,9 @@ export default function DashboardPage() {
         {/* Recent Movements */}
         <Card>
           <CardHeader>
-            <CardTitle>Últimos Movimientos</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <ArrowSwitchIcon className="w-4 h-4 text-primary" /> Últimos Movimientos
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-gray-50">
