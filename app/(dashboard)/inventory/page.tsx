@@ -16,7 +16,10 @@ interface Batch {
   flowerId: string;
   flower: { id: string; name: string; bouquetSize: number };
   quantity: number;
-  remaining: number;
+  remaining?: number;
+  totalUnits?: number;
+  remainingUnits?: number;
+  remainingBouquets?: number;
   supplier: string;
   receivedAt: string;
   expiresAt: string;
@@ -49,6 +52,10 @@ export default function InventoryPage() {
 
   const [wasteForm, setWasteForm] = useState({ quantity: "", reason: "" });
   const [saving, setSaving] = useState(false);
+  const selectedBatch = wasteOpen ? batches.find((x) => x.id === wasteOpen) : null;
+  const bouquetSize = selectedBatch?.flower?.bouquetSize ?? 1;
+  const wasteQtyNumber = Number(wasteForm.quantity || 0);
+  const equivalentBouquets = Math.floor(wasteQtyNumber / bouquetSize);
 
   const fetchData = useCallback(async () => {
     const [bRes, fRes] = await Promise.all([
@@ -117,15 +124,20 @@ export default function InventoryPage() {
         reason: wasteForm.reason || undefined,
       }),
     });
+    const payload = await res.json().catch(() => ({}));
     setSaving(false);
     if (res.ok) {
-      toast.success("Merma registrada");
+      const removed = payload.removedBouquets ?? 0;
+      if (removed > 0) {
+        toast.success(`Merma registrada — ${removed} ramo${removed !== 1 ? "s" : ""} eliminado${removed !== 1 ? "s" : "o"}`);
+      } else {
+        toast.success("Merma registrada");
+      }
       setWasteOpen(null);
       setWasteForm({ quantity: "", reason: "" });
       fetchData();
     } else {
-      const err = await res.json();
-      toast.error(err.error ?? "Error al registrar merma");
+      toast.error(payload.error ?? "Error al registrar merma");
     }
   }
 
@@ -194,25 +206,36 @@ export default function InventoryPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {["Flor", "Proveedor", "Recibido", "Vence", "Ramos totales", "Restante", "Frescura", ""].map(
-                  (h) => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                      {h}
-                    </th>
-                  )
-                )}
+                {[
+                  "Flor",
+                  "Proveedor",
+                  "Recibido",
+                  "Vence",
+                  "Ramos totales",
+                  "Unidades restantes",
+                  "Ramos restantes",
+                  "Frescura",
+                  "",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap"
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-400 text-sm">
+                  <td colSpan={9} className="py-12 text-center text-gray-400 text-sm">
                     Cargando…
                   </td>
                 </tr>
               ) : batches.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-400 text-sm">
+                  <td colSpan={9} className="py-12 text-center text-gray-400 text-sm">
                     Sin lotes registrados
                   </td>
                 </tr>
@@ -224,13 +247,14 @@ export default function InventoryPage() {
                     <td className="px-4 py-3 text-gray-600">{formatDate(b.receivedAt)}</td>
                     <td className="px-4 py-3 text-gray-600">{formatDate(b.expiresAt)}</td>
                     <td className="px-4 py-3 text-gray-600">{b.quantity}</td>
-                    <td className="px-4 py-3 font-semibold text-gray-900">{b.remaining}</td>
+                      <td className="px-4 py-3 text-gray-600">{b.remainingUnits ?? b.quantity * b.flower.bouquetSize} uds</td>
+                      <td className="px-4 py-3 font-semibold text-gray-900">{b.remainingBouquets ?? Math.floor((b.remainingUnits ?? (b.quantity * b.flower.bouquetSize)) / b.flower.bouquetSize)}</td>
                     <td className="px-4 py-3 min-w-[160px]">
                       <FreshnessBar daysLeft={b.daysLeft} freshness={b.freshness} />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        {b.remaining > 0 && (
+                        {(b.remainingUnits ?? 0) > 0 && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -340,7 +364,7 @@ export default function InventoryPage() {
       <Modal open={!!wasteOpen} onClose={() => setWasteOpen(null)} title="Registrar Merma">
         <form onSubmit={handleWaste} className="space-y-4">
           <Input
-            label="Cantidad de ramos a dar de baja"
+            label="Cantidad de unidades a dar de baja"
             id="wasteQty"
             type="number"
             min={1}
@@ -348,6 +372,11 @@ export default function InventoryPage() {
             value={wasteForm.quantity}
             onChange={(e) => setWasteForm({ ...wasteForm, quantity: e.target.value })}
           />
+          {wasteQtyNumber > 0 && (
+            <p className="text-xs text-gray-500">
+              Equivale a {equivalentBouquets} ramo{equivalentBouquets !== 1 ? "s" : ""} (tamaño: {bouquetSize} unidad{bouquetSize !== 1 ? "es" : ""})
+            </p>
+          )}
           <Textarea
             label="Motivo (opcional)"
             id="wasteReason"

@@ -21,24 +21,36 @@ export async function POST(req: NextRequest) {
   // Verify batch exists and has enough remaining stock
   const batch = await prisma.flowerBatch.findUnique({
     where: { id: batchId },
-    include: { movements: { select: { type: true, quantity: true } } },
+    include: {
+      movements: { select: { type: true, quantity: true } },
+      flower: { select: { bouquetSize: true } },
+    },
   });
 
   if (!batch) return apiError("Lote no encontrado", 404);
 
-  const consumed = batch.movements
+  const bouquetSize = batch.flower?.bouquetSize ?? 1;
+  const totalUnits = batch.quantity * bouquetSize;
+  const consumedUnits = batch.movements
     .filter((m) => m.type === "OUT" || m.type === "WASTE")
     .reduce((acc, m) => acc + m.quantity, 0);
-  const remaining = batch.quantity - consumed;
+  const remainingUnits = Math.max(0, totalUnits - consumedUnits);
 
-  if (quantity > remaining) return apiError("Cantidad mayor al stock disponible");
+  if (quantity > remainingUnits)
+    return apiError("Cantidad mayor al stock disponible (en unidades)");
 
   await prisma.$transaction([
     prisma.wasteLog.create({
       data: { batchId, quantity, reason, createdBy: session!.user.id },
     }),
     prisma.stockMovement.create({
-      data: { batchId, type: "WASTE", quantity, userId: session!.user.id, notes: reason },
+      data: {
+        batchId,
+        type: "WASTE",
+        quantity,
+        userId: session!.user.id,
+        notes: reason,
+      },
     }),
   ]);
 
@@ -50,5 +62,14 @@ export async function POST(req: NextRequest) {
     details: { quantity, reason },
   });
 
-  return apiSuccess({ ok: true });
+  const newRemainingUnits = remainingUnits - quantity;
+  const removedBouquets = Math.floor(quantity / bouquetSize);
+  const newRemainingBouquets = Math.floor(newRemainingUnits / bouquetSize);
+
+  return apiSuccess({
+    ok: true,
+    removedBouquets,
+    newRemainingUnits,
+    newRemainingBouquets,
+  });
 }

@@ -55,11 +55,22 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return apiError(parsed.error.message);
 
   const { items, ...orderData } = parsed.data;
+  // Fetch bouquet sizes for price calculation when items use 'units'
+  const flowerIds = Array.from(new Set(items.map((i: any) => i.flowerId)));
+  const flowers = await prisma.flower.findMany({
+    where: { id: { in: flowerIds } },
+    select: { id: true, bouquetSize: true },
+  });
+  const bouquetMap = new Map(flowers.map((f) => [f.id, f.bouquetSize]));
 
-  const totalPrice = items.reduce(
-    (sum, i) => sum + i.quantity * i.unitPrice,
-    0
-  );
+  // Calculate price: if the item provides `units`, treat `unitPrice` as price-per-unit
+  // and multiply by units. Otherwise multiply quantity (ramos) by unitPrice.
+  const totalPrice = items.reduce((sum: number, i: any) => {
+    if (i.units != null) {
+      return sum + Number(i.units) * Number(i.unitPrice);
+    }
+    return sum + (Number(i.quantity) || 0) * Number(i.unitPrice);
+  }, 0);
 
   const order = await prisma.order.create({
     data: {
@@ -70,7 +81,8 @@ export async function POST(req: NextRequest) {
       items: {
         create: items.map((i) => ({
           flowerId: i.flowerId,
-          quantity: i.quantity,
+          quantity: i.quantity ?? Math.floor((i.units ?? 0) / (flowers.find((f) => f.id === i.flowerId)?.bouquetSize ?? 1)),
+          units: i.units,
           unitPrice: i.unitPrice,
         })),
       },

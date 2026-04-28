@@ -179,7 +179,7 @@ export default function DashboardPage() {
                         <p className="text-xs text-gray-500">Vence: {formatDate(item.expiresAt)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-semibold text-gray-700">{item.remaining} ramos</p>
+                          <p className="text-sm font-semibold text-gray-700">{item.remaining} ramos</p>
                         <p className={`text-xs font-semibold ${labelColor}`}>{freshnessLabel} · {daysText}</p>
                       </div>
                     </div>
@@ -218,8 +218,8 @@ export default function DashboardPage() {
                       {m.user.name} · {formatDate(m.createdAt, "dd MMM HH:mm")}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700">{m.quantity} ramos</span>
+                    <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-700">{m.quantity} uds</span>
                     <Badge
                       variant={
                         m.type === "IN" ? "fresh" : m.type === "OUT" ? "default" : "expired"

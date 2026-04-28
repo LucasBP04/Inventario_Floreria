@@ -26,46 +26,56 @@ export async function POST(
   // FIFO stock deduction per flower
   try {
     await prisma.$transaction(async (tx) => {
-      for (const item of order.items) {
-        let needed = item.quantity;
-
-        // Fetch available batches for this flower FIFO (oldest expiresAt first)
-        const batches = await tx.flowerBatch.findMany({
-          where: { flowerId: item.flowerId },
-          include: { movements: { select: { type: true, quantity: true } } },
-          orderBy: { expiresAt: "asc" },
-        });
-
-        for (const batch of batches) {
-          if (needed <= 0) break;
-
-          const consumed = batch.movements
-            .filter((m) => m.type === "OUT" || m.type === "WASTE")
-            .reduce((acc, m) => acc + m.quantity, 0);
-          const available = batch.quantity - consumed;
-
-          if (available <= 0) continue;
-
-          const deduct = Math.min(needed, available);
-          needed -= deduct;
-
-          await tx.stockMovement.create({
-            data: {
-              batchId: batch.id,
-              type: "OUT",
-              quantity: deduct,
-              orderId: order.id,
-              userId: session!.user.id,
-            },
+        for (const item of order.items) {
+          // Work in UNITS: convert ordered bouquets to units
+          const flower = await tx.flower.findUnique({
+            where: { id: item.flowerId },
+            select: { bouquetSize: true, name: true },
           });
-        }
+          const bouquetSize = flower?.bouquetSize ?? 1;
+          // If the order item specifies `units`, use it directly. Otherwise assume `quantity` is bouquets.
+          const itemUnits = (item as any).units;
+          let needed = itemUnits != null ? itemUnits : item.quantity * bouquetSize; // units needed
 
-        if (needed > 0) {
-          throw new Error(
-            `Stock insuficiente para ${item.flowerId}: faltan ${needed} ramos`
-          );
+          // Fetch available batches for this flower FIFO (oldest expiresAt first)
+          const batches = await tx.flowerBatch.findMany({
+            where: { flowerId: item.flowerId },
+            include: { movements: { select: { type: true, quantity: true } } },
+            orderBy: { expiresAt: "asc" },
+          });
+
+          for (const batch of batches) {
+            if (needed <= 0) break;
+
+            const consumedUnits = batch.movements
+              .filter((m) => m.type === "OUT" || m.type === "WASTE")
+              .reduce((acc, m) => acc + m.quantity, 0);
+            const availableUnits = batch.quantity * bouquetSize - consumedUnits;
+
+            if (availableUnits <= 0) continue;
+
+            const deduct = Math.min(needed, availableUnits);
+            needed -= deduct;
+
+            await tx.stockMovement.create({
+              data: {
+                batchId: batch.id,
+                type: "OUT",
+                quantity: deduct,
+                orderId: order.id,
+                userId: session!.user.id,
+              },
+            });
+          }
+
+          if (needed > 0) {
+            const faltanUnits = needed;
+            const faltanBouquets = Math.ceil(faltanUnits / bouquetSize);
+            const flowerName = flower?.name ?? item.flowerId;
+            const message = `Stock insuficiente para ${flowerName}: faltan ${faltanBouquets} ramos (${faltanUnits} unidades)`;
+            throw new Error(message);
+          }
         }
-      }
 
       await tx.order.update({
         where: { id: order.id },

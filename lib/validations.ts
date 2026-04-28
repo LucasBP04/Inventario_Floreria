@@ -28,11 +28,17 @@ export const WasteSchema = z.object({
 });
 
 // ── Order ─────────────────────────────────────
-export const OrderItemSchema = z.object({
-  flowerId: objectId,
-  quantity: z.number().int().positive(),
-  unitPrice: z.number().positive(),
-});
+export const OrderItemSchema = z
+  .object({
+    flowerId: objectId,
+    // quantity (bouquets) OR units (individual flowers) — at least one required
+    quantity: z.number().int().positive().optional(),
+    units: z.number().int().positive().optional(),
+    unitPrice: z.number().positive(),
+  })
+  .refine((d) => d.quantity || d.units, {
+    message: "Debe especificar 'quantity' (ramos) o 'units' (unidades)",
+  });
 
 export const OrderSchema = z.object({
   customerName: z.string().min(2),

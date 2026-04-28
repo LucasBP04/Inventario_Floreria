@@ -25,22 +25,26 @@ export async function GET(_req: NextRequest) {
   const batches = await prisma.flowerBatch.findMany({
     where: { expiresAt: { gte: now } }, // exclude already-expired
     include: {
-      flower: { select: { name: true } },
+      flower: { select: { name: true, bouquetSize: true } },
       movements: { select: { type: true, quantity: true } },
     },
   });
 
   const enriched = batches.map((b) => {
-    const consumed = b.movements
+    const bouquetSize = b.flower?.bouquetSize ?? 1;
+    const totalUnits = b.quantity * bouquetSize;
+    const consumedUnits = b.movements
       .filter((m) => m.type === "OUT" || m.type === "WASTE")
       .reduce((acc, m) => acc + m.quantity, 0);
-    return { ...b, remaining: b.quantity - consumed };
+    const remainingUnits = Math.max(0, totalUnits - consumedUnits);
+    const remainingBouquets = Math.floor(remainingUnits / bouquetSize);
+    return { ...b, totalUnits, remainingUnits, remainingBouquets };
   });
 
-  const lowStock = enriched.filter((b) => b.remaining <= LOW_STOCK_THRESHOLD);
+  const lowStock = enriched.filter((b) => b.remainingBouquets <= LOW_STOCK_THRESHOLD);
 
   const expiring = enriched.filter(
-    (b) => new Date(b.expiresAt) <= in2Days && b.remaining > 0
+    (b) => new Date(b.expiresAt) <= in2Days && (b.remainingBouquets ?? 0) > 0
   );
 
   const upcomingSeasons = await prisma.season.findMany({

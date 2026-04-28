@@ -13,6 +13,8 @@ import { formatDate, formatCurrency } from "@/lib/utils";
 interface OrderItem {
   flowerId: string;
   quantity: number;
+  units?: number;
+  mode?: "ramos" | "unidades";
   unitPrice: number;
 }
 
@@ -27,7 +29,7 @@ interface Order {
   totalPrice: string;
   notes?: string;
   createdAt: string;
-  items: Array<{ flower: { name: string }; quantity: number; unitPrice: string }>;
+  items: Array<{ flower: { name: string }; quantity: number; units?: number; unitPrice: string }>;
   createdBy: { name: string };
 }
 
@@ -65,7 +67,7 @@ export default function OrdersPage() {
   const [saving, setSaving] = useState(false);
   const [filterStatus, setFilterStatus] = useState("");
 
-  const emptyItem: OrderItem = { flowerId: "", quantity: 1, unitPrice: 0 };
+  const emptyItem: OrderItem = { flowerId: "", quantity: 1, unitPrice: 0, mode: "ramos" };
   const [form, setForm] = useState({
     customerName: "",
     customerPhone: "",
@@ -92,7 +94,7 @@ export default function OrdersPage() {
 
   function updateItem(idx: number, field: keyof OrderItem, val: string | number) {
     const items = [...form.items];
-    items[idx] = { ...items[idx], [field]: val };
+    items[idx] = { ...items[idx], [field]: val } as OrderItem;
     // Auto-fill price when flower selected
     if (field === "flowerId") {
       const flower = flowers.find((f) => f.id === val);
@@ -104,7 +106,7 @@ export default function OrdersPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const res = await fetch("/api/orders", {
+      const res = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -113,7 +115,9 @@ export default function OrdersPage() {
         seasonId: form.seasonId || undefined,
         items: form.items.map((i) => ({
           flowerId: i.flowerId,
-          quantity: Number(i.quantity),
+          // send quantity only for ramos; send units only for unidades
+          quantity: i.mode === "ramos" ? Number(i.quantity) : undefined,
+          units: i.mode === "unidades" ? Number(i.units ?? 0) : undefined,
           unitPrice: Number(i.unitPrice),
         })),
       }),
@@ -208,7 +212,13 @@ export default function OrdersPage() {
                     <td className="px-4 py-3 max-w-[180px]">
                       <p className="text-gray-900 truncate">{o.arrangement}</p>
                       <p className="text-xs text-gray-500">
-                        {o.items.map((i) => `${i.quantity}x ${i.flower.name}`).join(", ")}
+                        {o.items
+                          .map((i) =>
+                            i.units != null
+                              ? `${i.units}x ${i.flower.name} (uds)`
+                              : `${i.quantity}x ${i.flower.name} (ramos)`
+                          )
+                          .join(", ")}
                       </p>
                     </td>
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatDate(o.deliveryDate)}</td>
@@ -247,7 +257,7 @@ export default function OrdersPage() {
       </Card>
 
       {/* Create Order Modal */}
-      <Modal open={open} onClose={() => setOpen(false)} title="Nuevo Pedido" className="max-w-2xl">
+      <Modal open={open} onClose={() => setOpen(false)} title="Nuevo Pedido" className="max-w-4xl">
         <form onSubmit={handleCreate} className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Nombre del cliente" id="cname" required value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} />
@@ -268,8 +278,8 @@ export default function OrdersPage() {
             <p className="text-sm font-medium text-gray-700 mb-2">Flores del arreglo</p>
             <div className="space-y-2">
               {form.items.map((item, idx) => (
-                <div key={idx} className="flex gap-2 items-end flex-wrap">
-                  <div className="flex-1 min-w-[140px]">
+                <div key={idx} className="flex gap-2 items-end flex-wrap w-full">
+                  <div className="w-1/2 min-w-[160px]">
                     <Select
                       id={`item-flower-${idx}`}
                       value={item.flowerId}
@@ -282,18 +292,36 @@ export default function OrdersPage() {
                       ))}
                     </Select>
                   </div>
-                  <div className="w-20">
-                    <Input
-                      id={`item-qty-${idx}`}
-                      type="number"
-                      min={1}
-                      placeholder="Ramos"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))}
-                      required
-                    />
+
+                  <div className="w-1/4 min-w-[140px] flex items-end gap-2">
+                    <div className="w-1/2">
+                      <Select
+                        id={`item-mode-${idx}`}
+                        value={item.mode ?? "ramos"}
+                        onChange={(e) => updateItem(idx, "mode", e.target.value as any)}
+                      >
+                        <option value="ramos">Ramos</option>
+                        <option value="unidades">Unidades</option>
+                      </Select>
+                    </div>
+                    <div className="w-1/2">
+                      <Input
+                        id={`item-qty-${idx}`}
+                        type="number"
+                        min={1}
+                        placeholder={item.mode === "unidades" ? "Unidades" : "Ramos"}
+                        value={item.mode === "unidades" ? (item.units ?? "") : item.quantity}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          if (item.mode === "unidades") updateItem(idx, "units", v);
+                          else updateItem(idx, "quantity", v);
+                        }}
+                        required
+                      />
+                    </div>
                   </div>
-                  <div className="w-28">
+
+                  <div className="w-[15%] min-w-[90px]">
                     <Input
                       id={`item-price-${idx}`}
                       type="number"
@@ -305,17 +333,20 @@ export default function OrdersPage() {
                       required
                     />
                   </div>
-                  {form.items.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500"
-                      onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) })}
-                    >
-                      ✕
-                    </Button>
-                  )}
+
+                  <div className="w-[10%] min-w-[48px] flex items-end justify-end">
+                    {form.items.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500"
+                        onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) })}
+                      >
+                        ✕
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

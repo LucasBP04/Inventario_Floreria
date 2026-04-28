@@ -52,10 +52,13 @@ export async function GET(_req: NextRequest) {
   });
 
   const inventorySummary = activeBatches.map((b) => {
-    const consumed = b.movements
+    const bouquetSize = b.flower?.bouquetSize ?? 1;
+    const totalUnits = b.quantity * bouquetSize;
+    const consumedUnits = b.movements
       .filter((m) => m.type === "OUT" || m.type === "WASTE")
       .reduce((acc, m) => acc + m.quantity, 0);
-    const remaining = b.quantity - consumed;
+    const remainingUnits = Math.max(0, totalUnits - consumedUnits);
+    const remaining = Math.floor(remainingUnits / bouquetSize);
     const daysLeft = Math.ceil(
       (new Date(b.expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -65,6 +68,7 @@ export async function GET(_req: NextRequest) {
       id: b.id,
       flowerName: b.flower.name,
       remaining,
+      remainingUnits,
       daysLeft,
       freshness,
       expiresAt: b.expiresAt,

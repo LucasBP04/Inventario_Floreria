@@ -10,8 +10,8 @@ import { formatDate } from "@/lib/utils";
 const POLL_MS = Number(process.env.NEXT_PUBLIC_POLL_INTERVAL_MS ?? 30000);
 
 interface AlertData {
-  lowStock: Array<{ id: string; flower: { name: string }; remaining: number; supplier: string }>;
-  expiring: Array<{ id: string; flower: { name: string }; remaining: number; expiresAt: string; daysLeft: number }>;
+  lowStock: Array<{ id: string; flower: { name: string }; remainingBouquets?: number; supplier: string }>;
+  expiring: Array<{ id: string; flower: { name: string }; remainingBouquets?: number; expiresAt: string; daysLeft: number }>;
   upcomingSeasons: Array<{ id: string; name: string; startDate: string; multiplier: string; targetUnits?: number }>;
 }
 
@@ -79,7 +79,7 @@ export default function AlertsPage() {
                     <div key={b.id} className="px-5 py-3">
                       <p className="text-sm font-medium text-gray-900">{b.flower.name}</p>
                       <p className="text-xs text-gray-500">
-                        {b.remaining} ramo{b.remaining !== 1 ? "s" : ""} restante{b.remaining !== 1 ? "s" : ""} · {b.supplier}
+                        {b.remainingBouquets} ramo{b.remainingBouquets !== 1 ? "s" : ""} restante{b.remainingBouquets !== 1 ? "s" : ""} · {b.supplier}
                       </p>
                     </div>
                   ))}
@@ -108,7 +108,7 @@ export default function AlertsPage() {
                     <div key={b.id} className="px-5 py-3">
                       <p className="text-sm font-medium text-gray-900">{b.flower.name}</p>
                       <p className="text-xs text-gray-500">
-                        {b.remaining} ramos · Vence {formatDate(b.expiresAt)} ({b.daysLeft}d)
+                        {b.remainingBouquets} ramos · Vence {formatDate(b.expiresAt)} ({b.daysLeft}d)
                       </p>
                     </div>
                   ))}

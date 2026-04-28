@@ -25,12 +25,15 @@ export async function GET(req: NextRequest) {
     orderBy: { expiresAt: "asc" },
   });
 
-  // Compute remaining stock per batch
+  // Compute remaining stock per batch (work in UNITS)
   const enriched = batches.map((b) => {
-    const consumed = b.movements
+    const bouquetSize = b.flower?.bouquetSize ?? 1;
+    const totalUnits = b.quantity * bouquetSize;
+    const consumedUnits = b.movements
       .filter((m) => m.type === "OUT" || m.type === "WASTE")
       .reduce((acc, m) => acc + m.quantity, 0);
-    const remaining = b.quantity - consumed;
+    const remainingUnits = Math.max(0, totalUnits - consumedUnits);
+    const remainingBouquets = Math.floor(remainingUnits / bouquetSize);
 
     const now = new Date();
     const expires = new Date(b.expiresAt);
@@ -41,7 +44,15 @@ export async function GET(req: NextRequest) {
     const freshness =
       daysLeft < 0 ? "expired" : daysLeft < 2 ? "expiring" : "fresh";
 
-    return { ...b, movements: undefined, remaining, daysLeft, freshness };
+    return {
+      ...b,
+      movements: undefined,
+      totalUnits,
+      remainingUnits,
+      remainingBouquets,
+      daysLeft,
+      freshness,
+    };
   });
 
   return apiSuccess(enriched);
@@ -64,15 +75,19 @@ export async function POST(req: NextRequest) {
   const expiresAt = addDays(received, 7);
 
   const batch = await prisma.$transaction(async (tx) => {
+    const flower = await tx.flower.findUnique({ where: { id: flowerId } });
+    if (!flower) throw new Error("Flor no encontrada");
+
     const newBatch = await tx.flowerBatch.create({
       data: { flowerId, quantity, supplier, receivedAt: received, expiresAt, notes },
     });
 
+    // Store stock movements in UNITS (quantity * bouquetSize)
     await tx.stockMovement.create({
       data: {
         batchId: newBatch.id,
         type: "IN",
-        quantity,
+        quantity: quantity * flower.bouquetSize,
         userId: session!.user.id,
       },
     });
