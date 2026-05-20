@@ -22,6 +22,11 @@ export const toast = {
 
 export function Toaster() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   addToast = useCallback((message, type) => {
     const id = Date.now();
@@ -29,7 +34,7 @@ export function Toaster() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   }, []);
 
-  if (typeof window === "undefined") return null;
+  if (!mounted) return null;
 
   return createPortal(
     <div className="fixed top-4 right-4 z-[9999] space-y-2 w-80">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { Plus, CalendarHeart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,8 @@ interface Season {
 }
 
 export default function SeasonsPage() {
+  const { data: session } = useSession();
+  const isOwner = session?.user?.role === "OWNER";
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -75,10 +78,12 @@ export default function SeasonsPage() {
           <h1 className="text-xl font-bold text-gray-900">Temporadas</h1>
           <p className="text-sm text-gray-500 mt-0.5">Eventos de alta demanda y precios especiales</p>
         </div>
-        <Button size="sm" onClick={() => setOpen(true)}>
-          <Plus className="w-4 h-4" />
-          Nueva temporada
-        </Button>
+        {isOwner && (
+          <Button size="sm" onClick={() => setOpen(true)}>
+            <Plus className="w-4 h-4" />
+            Nueva temporada
+          </Button>
+        )}
       </div>
 
       <Card>

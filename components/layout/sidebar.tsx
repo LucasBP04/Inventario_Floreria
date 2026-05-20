@@ -16,12 +16,12 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["OWNER", "EMPLOYEE"] },
-  { href: "/inventory", label: "Inventario", icon: PackageOpen, roles: ["OWNER", "EMPLOYEE"] },
-  { href: "/flowers", label: "Catálogo", icon: Flower2, roles: ["OWNER", "EMPLOYEE"] },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["OWNER"] },
+  { href: "/inventory", label: "Ingresos de Inventario", icon: PackageOpen, roles: ["OWNER", "EMPLOYEE"] },
+  { href: "/flowers", label: "Catálogo", icon: Flower2, roles: ["OWNER"] },
   { href: "/orders", label: "Pedidos", icon: ShoppingCart, roles: ["OWNER", "EMPLOYEE"] },
-  { href: "/seasons", label: "Temporadas", icon: CalendarHeart, roles: ["OWNER", "EMPLOYEE"] },
-  { href: "/alerts", label: "Alertas", icon: Bell, roles: ["OWNER", "EMPLOYEE"] },
+  { href: "/seasons", label: "Temporadas", icon: CalendarHeart, roles: ["OWNER"] },
+  { href: "/alerts", label: "Alertas", icon: Bell, roles: ["OWNER","EMPLOYEE"] },
   { href: "/users", label: "Usuarios", icon: Users, roles: ["OWNER"] },
 ];
 
@@ -61,7 +61,7 @@ export function Sidebar({ role }: { role: string }) {
       <aside className="hidden md:flex md:flex-col w-56 bg-white border-r border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-2 px-4 py-5 border-b border-gray-200">
           <Flower2 className="w-6 h-6 text-primary" />
-          <span className="font-bold text-gray-900 text-sm">Florería Perla</span>
+          <span className="font-bold text-gray-900 text-sm">Florería</span>
         </div>
         {nav}
       </aside>

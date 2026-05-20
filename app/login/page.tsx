@@ -1,16 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Flower2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
+  
   useEffect(() => {
-    // Auto-redirect to dashboard so no registration/login is required
-    router.replace("/dashboard");
-  }, [router]);
+    // Redirigir al dashboard solo si está autenticado
+    if (status === "authenticated" && session) {
+      router.replace("/dashboard");
+    }
+  }, [status, session, router]);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -21,18 +26,19 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const res = await signIn("credentials", {
+    const result = await signIn("credentials", {
       email,
       password,
       redirect: false,
     });
 
-    setLoading(false);
-
-    if (res?.error) {
+    if (result?.error) {
+      setLoading(false);
       setError("Correo o contraseña incorrectos.");
-    } else {
-      router.push("/dashboard");
+    } else if (result?.ok) {
+      // Esperar un poco para que la sesión se establezca, luego redirigir
+      await new Promise(resolve => setTimeout(resolve, 500));
+      router.replace("/dashboard");
     }
   }
 
@@ -44,7 +50,7 @@ export default function LoginPage() {
           <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mb-3">
             <Flower2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Florería Perla</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Florería </h1>
           <p className="text-sm text-gray-500 mt-1">Panel de Administración</p>
         </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { Plus, UserCheck, UserX, ShieldCheck, Shield } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,10 +21,23 @@ interface User {
 }
 
 export default function UsersPage() {
+  const { data: session } = useSession();
+  const isOwner = session?.user?.role === "OWNER";
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  if (!isOwner) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Acceso denegado</h1>
+          <p className="text-gray-500">Solo los propietarios pueden gestionar usuarios.</p>
+        </div>
+      </div>
+    );
+  }
 
   const empty = { name: "", email: "", password: "", role: "EMPLOYEE" };
   const [form, setForm] = useState(empty);
@@ -88,10 +102,12 @@ export default function UsersPage() {
           <h1 className="text-xl font-bold text-gray-900">Usuarios</h1>
           <p className="text-sm text-gray-500 mt-0.5">Gestión de acceso al panel</p>
         </div>
-        <Button size="sm" onClick={() => setOpen(true)}>
-          <Plus className="w-4 h-4" />
-          Nuevo usuario
-        </Button>
+        {isOwner && (
+          <Button size="sm" onClick={() => setOpen(true)}>
+            <Plus className="w-4 h-4" />
+            Nuevo usuario
+          </Button>
+        )}
       </div>
 
       <Card>
